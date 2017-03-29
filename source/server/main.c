@@ -87,7 +87,7 @@ int main(int argc, char *argv[]){
     char *assets_path = getcwd(NULL, 0);
     assets_path = realloc(assets_path, (strlen(assets_path) + 8) * sizeof(char));
     strcat(assets_path, "/assets");
-    portno = 443;
+    portno = 80;
 
     for(int i = 1; i < argc; i++){
         if(strcmp(argv[i], "-p") == 0){
@@ -153,7 +153,7 @@ int main(int argc, char *argv[]){
         error("ERROR on binding");
     }
 
-    char *content = NULL;
+    scsd_char_vector content;
     http_header_t header;
     char *str_header = NULL;
     char *reply = NULL;
@@ -182,15 +182,17 @@ int main(int argc, char *argv[]){
             header.code = 404;
             header.len = 0;
             header.type = text;
-            rel_path = calloc(1, (strlen(assets_path) + strlen("/html/error_404.html")) * sizeof(char));
+            rel_path = calloc(1, (strlen(assets_path) + strlen("/html/error_404.html") + 1) * sizeof(char));
             strcpy(rel_path, assets_path);
             strcat(rel_path, "/html/error_404.html");
             content = bfinput(rel_path);
-            if(content != NULL){
-                header.len = strlen(content);
+            if(content.vector != NULL){
+                header.len = content.len;
                 str_header = http_generate_header(header);
-                reply = calloc(1, (strlen(str_header) + strlen(content) + 1) * sizeof(char));
-                n = write(newsockfd, reply, strlen(reply) + 1);
+                reply = calloc(1, (strlen(str_header) + content.len + 1) * sizeof(char));
+                strcat(reply, str_header);
+                memmove(reply + strlen(str_header), content.vector, content.len);
+                n = write(newsockfd, reply, strlen(str_header) + content.len);
             }
             else {
                 str_header = http_generate_header(header);
@@ -211,22 +213,30 @@ int main(int argc, char *argv[]){
             strcpy(rel_path, ".");
         }
         content = bfinput(rel_path);
-        if(content != NULL){
-            content = realloc(content, strlen(content) + 1);
+        if(content.vector != NULL){
+            //content = realloc(content, strlen(content) + 1);
             header.code = 200;
-            header.len = strlen(content)/* + 1*/;
+            header.len = content.len/* + 1*/;
             header.type = text;
             strtok(req_header.req_page, ".");
             if(strcmp(strtok(NULL, "."), "css") == 0){
                 header.type = css;
             }
+            //puts(strtok(req_header.req_page, "."));
+            //puts(req_header.req_page);
+            //printf("%d\n", strtok(NULL, ".") == NULL);
+            else /*(strcmp(strtok(req_header.req_page, "."), "png") == 0)*/{
+                header.type = png;
+            }
+            puts(req_header.req_page);
             str_header = http_generate_header(header);
             puts(str_header);
-            reply = calloc(1, strlen(str_header) + strlen(content) + 1);
+            reply = calloc(1, strlen(str_header) + content.len + 1);
             strcpy(reply, str_header);
-            strcat(reply, content);
-            reply = realloc(reply, strlen(reply) + 1);
-            n = write(newsockfd, reply, strlen(reply) + 1);
+            memmove(reply + strlen(str_header), content.vector, content.len);
+            //reply = realloc(reply, strlen(reply) + 1);
+            n = write(newsockfd, reply, strlen(str_header) + content.len);
+            printf("%d :: %ld\n", n, strlen(str_header) + content.len);
             if(n < 0){
                 error("ERROR writing to socket");
             }
@@ -239,13 +249,13 @@ int main(int argc, char *argv[]){
             strcpy(rel_path, assets_path);
             strcat(rel_path, "/html/error_404.html");
             content = bfinput(rel_path);
-            if(content != NULL){
-                header.len = strlen(content);
+            if(content.vector != NULL){
+                header.len = content.len;
                 str_header = http_generate_header(header);
-                reply = calloc(1, (strlen(str_header) + strlen(content) + 1) * sizeof(char));
+                reply = calloc(1, (strlen(str_header) + content.len + 1) * sizeof(char));
                 strcat(reply, str_header);
-                strcat(reply, content);
-                n = write(newsockfd, reply, strlen(reply) + 1);
+                memmove(reply + strlen(str_header), content.vector, content.len);
+                n = write(newsockfd, reply, strlen(str_header) + content.len);
             }
             else {
                 str_header = http_generate_header(header);
@@ -256,8 +266,8 @@ int main(int argc, char *argv[]){
         if(rel_path != NULL){
             free(rel_path);
         }
-        if(content != NULL){
-            free(content);
+        if(content.vector != NULL){
+            free(content.vector);
         }
         if(str_header != NULL){
             free(str_header);

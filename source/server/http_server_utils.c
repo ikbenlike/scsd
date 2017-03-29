@@ -44,29 +44,34 @@ char *finput(char *dest, char *path, int size){
     return dest;
 }
 
-char *bfinput(char *path){
+scsd_char_vector bfinput(char *path){
     struct stat *st = calloc(1, sizeof(struct stat));
     stat(path, st);
     int size = st->st_size;
     free(st);
     printf("File '%s' size: %d\n", path, size);
     FILE *fp = fopen(path, "r");
+    scsd_char_vector vec;
     if(fp == NULL){
         perror("fopen");
-        return NULL;
+        vec.vector = NULL;
+        return vec;
     }
-    char *buf = calloc(1, size * (sizeof(char) + 1));
-    int i = 0;
-    for(i = 0; i <= size; i++){
-        buf[i] = fgetc(fp);
-        if(buf[i] == EOF){
-            buf[i] = '\0';
+    vec.vector = calloc(1, size * (sizeof(char) + 1));
+    vec.cursor = 0;
+    vec.len = size;
+    //char *buf = calloc(1, size * (sizeof(char) + 1));
+    //int i = 0;
+    for( ; vec.cursor <= vec.len; vec.cursor++){
+        if(vec.vector[vec.cursor] != EOF){
+            vec.vector[vec.cursor] = fgetc(fp);
+            //vec.vector[vec.cursor] = '\0';
             break;
         }
     }
-    printf("File '%s' len: %d\n", path, i);
+    //printf("File '%s' len: %d\n", path, i);
     fclose(fp);
-    return buf;
+    return vec;
 }
 
 http_req_t http_parse_header(char *header){
@@ -133,8 +138,11 @@ char *http_generate_header(http_header_t header_data){
     if(header_data.type == css){
         content_t = "Content-Type: text/css\n";
     }
-    else if(header_data.type == image){
-        content_t = "Content-Type: image\n";
+    else if(header_data.type == png){
+        content_t = "Content-Type: image/png\n";
+    }
+    else if(header_data.type == jpeg){
+        content_t = "Content-Type: image/jpeg\n";
     }
     else if(header_data.type == video){
         content_t = "Content-Type: video\n";
